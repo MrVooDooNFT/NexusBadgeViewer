@@ -1,163 +1,219 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>NFT Görüntüleyici — Alpha (ETH) & Bette (Base)</title>
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0f1115;color:#e7e9ee;margin:0}
-    header{padding:18px 16px;text-align:center;border-bottom:1px solid #1e2230}
-    .row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
-    input,button{padding:10px 12px;font-size:16px;border-radius:10px;border:1px solid #2a3042;background:#141825;color:#e7e9ee}
-    button{cursor:pointer}
-    main{max-width:1200px;margin:0 auto;padding:16px}
-    h2{margin:24px 0 12px;font-size:20px;font-weight:700}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
-    .card{background:#141825;border:1px solid #22283a;border-radius:12px;overflow:hidden}
-    .thumb{width:100%;aspect-ratio:1/1;object-fit:cover;background:#0b0e16}
-    .meta{padding:8px 10px;font-size:14px}
-    .status{margin-top:10px;text-align:center;opacity:.9}
-    .muted{opacity:.7}
-    .sec{margin-top:22px}
-    .err{color:#ff6b6b}
-    a{color:#9ecbff;text-decoration:none}
-    a:hover{text-decoration:underline}
-    footer{padding:16px;text-align:center;opacity:.6}
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>NFT Checker — Alpha (ETH) & Betta (Base)</title>
+<style>
+  :root { --bg:#0f1115; --card:#141825; --bd:#22283a; --txt:#e7e9ee; --muted:#a6adbb; }
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);margin:0}
+  header{padding:18px 16px;text-align:center;border-bottom:1px solid #1e2230}
+  .row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+  input,button{padding:10px 12px;font-size:16px;border-radius:10px;border:1px solid #2a3042;background:var(--card);color:var(--txt)}
+  button{cursor:pointer}
+  main{max-width:1200px;margin:0 auto;padding:16px}
+  h2{margin:24px 0 12px;font-size:20px;font-weight:700}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+  .thumbs{display:flex;gap:6px;flex-wrap:wrap;padding:10px;min-height:84px;align-items:center;justify-content:center}
+  .thumbs img{width:78px;height:78px;object-fit:cover;border-radius:8px;background:#0b0e16}
+  .meta{padding:10px;border-top:1px solid var(--bd)}
+  .ok{color:#7CFC98;font-weight:700}
+  .no{color:#ff6b6b;font-weight:700}
+  .muted{color:var(--muted)}
+  .status{margin-top:10px;text-align:center;opacity:.9}
+  a{color:#9ecbff;text-decoration:none}
+  a:hover{text-decoration:underline}
+</style>
 </head>
 <body>
 <header>
   <div class="row">
-    <input id="address" placeholder="Ethereum / Base adresi (0x...)" size="46" />
-    <button id="goBtn">Göster (ETH + Base)</button>
+    <input id="address" placeholder="Kontrol edilecek adres (0x...)" size="46" />
+    <button id="goBtn">Kontrol et (Alpha + Betta)</button>
   </div>
-  <div id="status" class="status muted"></div>
+  <div id="status" class="status"></div>
 </header>
 
 <main>
-  <section class="sec">
+  <section>
     <h2>Alpha — Ethereum</h2>
     <div id="grid-eth" class="grid"></div>
     <div id="status-eth" class="status muted"></div>
   </section>
 
-  <section class="sec">
-    <h2>Bette — Base</h2>
+  <section>
+    <h2>Betta — Base</h2>
     <div id="grid-base" class="grid"></div>
     <div id="status-base" class="status muted"></div>
   </section>
 </main>
 
-<footer>Veriler Covalent GoldRush API ile çekilir. Görseller IPFS/HTTP üzerinden gösterilir.</footer>
-
 <script>
-const COVALENT_KEY = "cqt_rQmpdjRkVtvctfYTqQ63mBKq3GWr"; // İstediğin gibi gömülü
-const CHAINS = {
-  eth: 1,      // Alpha
-  base: 8453   // Bette
-};
+/* Gömülü Covalent API key (GoldRush) */
+const COVALENT_KEY = "cqt_rQmpdjRkVtvctfYTqQ63mBKq3GWr";
+
+/* Hedef 14 NFT — kontrat + tokenId düzeyinde kontrol */
+const TARGETS = [
+  // ---- Alpha (Ethereum, chainId: 1) ----
+  { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "0" },
+  { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "1" },
+  { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "2" },
+  { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "3" },
+  { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "4" },
+
+  // ---- Betta (Base, chainId: 8453) ----
+  { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "0" },
+  { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "1" },
+  { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "2" },
+  { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "3" },
+  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "4" },
+  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "3" },
+  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "2" },
+  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "1" },
+  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "0" },
+];
 
 function toHttpFromIpfs(url){
   if(!url) return "";
   if(url.startsWith("ipfs://")){
-    const path = url.replace("ipfs://", "");
+    const path = url.replace("ipfs://","");
     return `https://ipfs.io/ipfs/${path}`;
   }
-  // Bazı metadata'lar gatewayless döner: ipfs/<cid> veya /ipfs/<cid>
   if(/^\/?ipfs\//i.test(url)){
     return "https://ipfs.io/" + url.replace(/^\/?/,"");
   }
   return url;
 }
+function short(s,n=64){ return s && s.length>n ? s.slice(0,n-3)+"..." : s; }
+function tidyId(x){ return String(x).replace(/^0+(\d)$/, "$1"); } // "0003" -> "3"
 
-function short(s, n=42){
-  if(!s) return "";
-  return s.length>n ? s.slice(0, n-3)+"..." : s;
-}
-
-async function fetchNftsFor(chainId, address){
+async function fetchBalances(chainId, address){
   const url = `https://api.covalenthq.com/v1/${chainId}/address/${address}/balances_v2/?nft=true&no-nft-fetch=false`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${COVALENT_KEY}` }});
   if(!res.ok) throw new Error(`API ${chainId} status ${res.status}`);
-  const json = await res.json();
-  const items = (json?.data?.items || []).filter(x => x.type === "nft" && Array.isArray(x.nft_data));
-  const out = [];
-  for(const col of items){
-    const caddr = col.contract_address;
-    const cname = col.contract_name || "NFT";
-    for(const nft of col.nft_data){
-      const meta = nft.external_data || {};
-      const name = meta.name || `${cname} #${nft.token_id}`;
-      let img = meta.image || "";
-      img = toHttpFromIpfs(img);
-      if(img) out.push({
-        name, img,
-        tokenId: nft.token_id,
-        contract: caddr,
-        collection: cname
-      });
-    }
-  }
-  return out;
+  return res.json();
 }
 
-function render(list, gridEl, statusEl, chainLabel){
+/* { contract_lower: { [tokenId]: {img,name,collection} } } */
+function buildOwnedTokenMap(data){
+  const map = {};
+  const items = (data?.data?.items || []).filter(x => x.type === "nft" && Array.isArray(x.nft_data));
+  for(const col of items){
+    const c = (col.contract_address || "").toLowerCase();
+    if(!c) continue;
+    if(!map[c]) map[c] = {};
+    for(const nft of col.nft_data){
+      const tid = tidyId(nft.token_id ?? "");
+      const meta = nft.external_data || {};
+      const img = toHttpFromIpfs(meta.image || "");
+      const name = meta.name || `${col.contract_name || "NFT"} #${tid}`;
+      map[c][tid] = { img, name, collection: col.contract_name || "NFT" };
+    }
+  }
+  return map;
+}
+
+function renderTargets({targets, ownedMap, gridEl, chainId}){
   gridEl.innerHTML = "";
-  if(!list || list.length === 0){
-    statusEl.textContent = `Bu adreste ${chainLabel} için NFT bulunamadı.`;
+  if(!targets.length){
+    gridEl.innerHTML = `<div class="status muted">Bu ağ için hedef yok.</div>`;
     return;
   }
-  statusEl.textContent = "";
-  for(const it of list){
+
+  for(const t of targets){
+    const cLower = t.contract.toLowerCase();
+    const tid = tidyId(t.tokenId);
+    const owned = !!(ownedMap[cLower] && ownedMap[cLower][tid]);
+    const meta = owned ? ownedMap[cLower][tid] : null;
+
+    const scan = chainId===1
+      ? `https://etherscan.io/token/${t.contract}?a=${tid}`
+      : `https://basescan.org/token/${t.contract}?a=${tid}`;
+
     const card = document.createElement("div");
     card.className = "card";
-    card.innerHTML = `
-      <img class="thumb" src="${it.img}" alt="${it.name}" loading="lazy">
-      <div class="meta">
-        <div>${short(it.name, 50)}</div>
-        <div class="muted">${short(it.collection || "Koleksiyon", 50)}</div>
-        <div class="muted">Token #${it.tokenId}</div>
-        <div style="margin-top:6px;font-size:12px">
-          <a href="https://etherscan.io/token/${it.contract}?a=${it.tokenId}" target="_blank" rel="noopener">Etherscan</a> •
-          <a href="https://basescan.org/token/${it.contract}?a=${it.tokenId}" target="_blank" rel="noopener">BaseScan</a>
-        </div>
+
+    const thumbs = document.createElement("div");
+    thumbs.className = "thumbs";
+    if(owned && meta?.img){
+      const img = document.createElement("img");
+      img.src = meta.img; img.alt = meta.name; img.loading = "lazy";
+      thumbs.appendChild(img);
+    } else {
+      thumbs.innerHTML = `<div class="muted" style="width:100%;text-align:center;">(No preview)</div>`;
+    }
+
+    const info = document.createElement("div");
+    info.className = "meta";
+    info.innerHTML = `
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="font-weight:700">${short(meta?.collection || "NFT Collection", 48)}</div>
+        <div class="${owned?'ok':'no'}">${owned?'You have':'Missing'}</div>
+      </div>
+      <div class="muted" style="margin-top:6px">${chainId===1?'Ethereum':'Base'} • ${t.contract} • Token #${tid}</div>
+      <div style="margin-top:6px;font-size:12px">
+        <a href="${scan}" target="_blank" rel="noopener">View on ${chainId===1?'Etherscan':'BaseScan'}</a>
       </div>
     `;
+
+    card.appendChild(thumbs);
+    card.appendChild(info);
     gridEl.appendChild(card);
   }
 }
 
-async function loadBoth(){
-  const addr = document.getElementById("address").value.trim();
-  const status = document.getElementById("status");
-  const gridEth = document.getElementById("grid-eth");
-  const gridBase = document.getElementById("grid-base");
-  const statusEth = document.getElementById("status-eth");
-  const statusBase = document.getElementById("status-base");
+async function checkAll(){
+  const addr = document.getElementById('address').value.trim();
+  const status = document.getElementById('status');
+  const gridEth = document.getElementById('grid-eth');
+  const gridBase = document.getElementById('grid-base');
+  const statusEth = document.getElementById('status-eth');
+  const statusBase = document.getElementById('status-base');
 
-  gridEth.innerHTML = ""; gridBase.innerHTML = "";
-  statusEth.textContent = ""; statusBase.textContent = "";
+  gridEth.innerHTML=""; gridBase.innerHTML="";
+  statusEth.textContent=""; statusBase.textContent="";
+  status.textContent="";
+
   if(!/^0x[a-fA-F0-9]{40}$/.test(addr)){ alert("Geçerli bir 0x adresi gir."); return; }
 
-  status.textContent = "Yükleniyor… (ETH ve Base birlikte)";
+  // hedefleri ağa göre ayır
+  const ethTargets = TARGETS.filter(t => t.chainId===1);
+  const baseTargets = TARGETS.filter(t => t.chainId===8453);
 
+  status.textContent = "Yükleniyor… (Alpha + Betta)";
   try{
-    // ETH önce, Base sonra — tek seferde paralel çekiyoruz
-    const [ethList, baseList] = await Promise.all([
-      fetchNftsFor(CHAINS.eth, addr),
-      fetchNftsFor(CHAINS.base, addr)
+    const [ethRes, baseRes] = await Promise.allSettled([
+      ethTargets.length ? fetchBalances(1, addr) : Promise.resolve(null),
+      baseTargets.length ? fetchBalances(8453, addr) : Promise.resolve(null)
     ]);
 
-    render(ethList, gridEth, statusEth, "Ethereum");
-    render(baseList, gridBase, statusBase, "Base");
+    if(ethTargets.length){
+      if(ethRes.status === "fulfilled"){
+        const mapEth = buildOwnedTokenMap(ethRes.value);
+        renderTargets({targets: ethTargets, ownedMap: mapEth, gridEl: grid-eth, chainId: 1});
+      } else {
+        statusEth.textContent = "Alpha (ETH) sorgusunda hata.";
+      }
+    } else statusEth.textContent = "Alpha için hedef yok.";
+
+    if(baseTargets.length){
+      if(baseRes.status === "fulfilled"){
+        const mapBase = buildOwnedTokenMap(baseRes.value);
+        renderTargets({targets: baseTargets, ownedMap: mapBase, gridEl: grid-base, chainId: 8453});
+      } else {
+        statusBase.textContent = "Betta (Base) sorgusunda hata.";
+      }
+    } else statusBase.textContent = "Betta için hedef yok.";
+
     status.textContent = "";
-  }catch(err){
-    console.error(err);
-    status.innerHTML = `<span class="err">Hata: ${err.message || err}. (HTTPS üzerinden çalıştırdığından emin ol)</span>`;
+  }catch(e){
+    console.error(e);
+    status.innerHTML = `<span class="no">Hata: ${e.message || e}. (HTTPS üzerinden çalıştırdığından ve key’in geçerli olduğundan emin ol)</span>`;
   }
 }
 
-document.getElementById("goBtn").addEventListener("click", loadBoth);
+document.getElementById('goBtn').addEventListener('click', checkAll);
 </script>
 </body>
 </html>
