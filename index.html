@@ -62,29 +62,28 @@
 <script>
 const COVALENT_KEY = "cqt_rQmpdjRkVtvctfYTqQ63mBKq3GWr";
 
-/* Hedefler + grup (artık kart başlığında grup adı kullanılmıyor) */
 const TARGETS = [
-  // Node Runner — Ethereum (chainId:1)
+  // Node Runner — Ethereum
   { group:"node",  chainId:1,    contract:"0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId:"0" },
   { group:"node",  chainId:1,    contract:"0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId:"1" },
   { group:"node",  chainId:1,    contract:"0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId:"2" },
   { group:"node",  chainId:1,    contract:"0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId:"3" },
   { group:"node",  chainId:1,    contract:"0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId:"4" },
 
-  // Alpha — Base (chainId:8453)
+  // Alpha — Base
   { group:"alpha", chainId:8453, contract:"0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId:"0" },
   { group:"alpha", chainId:8453, contract:"0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId:"1" },
   { group:"alpha", chainId:8453, contract:"0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId:"2" },
   { group:"alpha", chainId:8453, contract:"0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId:"3" },
   { group:"alpha", chainId:8453, contract:"0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId:"4" },
 
-  // Beta — Base (chainId:8453)
+  // Beta — Base
   { group:"beta",  chainId:8453, contract:"0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId:"0" },
   { group:"beta",  chainId:8453, contract:"0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId:"1" },
   { group:"beta",  chainId:8453, contract:"0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId:"2" },
   { group:"beta",  chainId:8453, contract:"0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId:"3" },
 
-  // Gamma — Base (chainId:8453)
+  // Gamma — Base
   { group:"gamma", chainId:8453, contract:"0x6f0df43e2849775e98350bc56ffa13e93b284a66", tokenId:"0" },
   { group:"gamma", chainId:8453, contract:"0x6f0df43e2849775e98350bc56ffa13e93b284a66", tokenId:"1" },
   { group:"gamma", chainId:8453, contract:"0x6f0df43e2849775e98350bc56ffa13e93b284a66", tokenId:"2" },
@@ -92,7 +91,7 @@ const TARGETS = [
   { group:"gamma", chainId:8453, contract:"0x6f0df43e2849775e98350bc56ffa13e93b284a66", tokenId:"4" },
 ];
 
-/* ---- helpers ---- */
+/* helpers */
 function toHttpFromIpfs(url){
   if(!url) return "";
   if(url.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${url.replace("ipfs://","")}`;
@@ -104,7 +103,7 @@ function tidyId(x){
   return Number.isFinite(n) ? String(n) : String(x);
 }
 
-/* Cüzdandaki NFT’lerden sahip olunanları haritalar */
+/* wallet balances -> owned map */
 async function fetchBalances(chainId, address){
   const url = `https://api.covalenthq.com/v1/${chainId}/address/${address}/balances_v2/?nft=true&no-nft-fetch=false`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${COVALENT_KEY}` }});
@@ -129,18 +128,15 @@ function buildOwnedTokenMap(data){
   return map;
 }
 
-/* Missing tokenlar için tekil metadata (cache’li) */
-const META_CACHE = new Map(); // key: `${chainId}:${contract}:${tokenId}`
+/* single metadata (cache) */
+const META_CACHE = new Map(); // `${chainId}:${contract}:${tokenId}`
 async function fetchSingleMetadata(chainId, contract, tokenId){
   const key = `${chainId}:${contract.toLowerCase()}:${tokenId}`;
   if(META_CACHE.has(key)) return META_CACHE.get(key);
 
   const url = `https://api.covalenthq.com/v1/${chainId}/tokens/${contract}/nft_metadata/${tokenId}/`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${COVALENT_KEY}` }});
-  if(!res.ok){
-    META_CACHE.set(key, null);
-    return null;
-  }
+  if(!res.ok){ META_CACHE.set(key, null); return null; }
   const json = await res.json();
   const item  = json?.data?.items?.[0];
   const nd    = item?.nft_data?.[0];
@@ -153,7 +149,7 @@ async function fetchSingleMetadata(chainId, contract, tokenId){
   return out;
 }
 
-/* Render: başlıkta daima CA/metadata’dan gelen koleksiyon adı kullanılır (Gamma dahil) */
+/* render: eğer owned koleksiyon adı "NFT" veya boşsa, tekil metadata ile düzelt */
 async function renderTargets({targets, ownedMap, gridEl}){
   gridEl.innerHTML = "";
 
@@ -162,13 +158,22 @@ async function renderTargets({targets, ownedMap, gridEl}){
     const tid = tidyId(t.tokenId);
     const displayId = (Number(tid) + 1);
 
-    const owned = !!(ownedMap[cLower] && ownedMap[cLower][tid]);
+    let owned = !!(ownedMap[cLower] && ownedMap[cLower][tid]);
     let img = "", titleName = "NFT";
 
     if(owned){
-      const m = ownedMap[cLower][tid];
+      let m = ownedMap[cLower][tid];
       img = m?.img || "";
       titleName = m?.collection || "NFT";
+
+      // 🔧 düzeltme: koleksiyon adı belirsizse tekil metadata'dan al
+      if(!titleName || /^nft$/i.test(titleName)){
+        const meta = await fetchSingleMetadata(t.chainId, t.contract, tid);
+        if(meta){
+          titleName = meta.collection || titleName;
+          if(!img) img = meta.img || "";
+        }
+      }
     } else {
       const meta = await fetchSingleMetadata(t.chainId, t.contract, tid);
       if(meta){
@@ -207,7 +212,7 @@ async function renderTargets({targets, ownedMap, gridEl}){
   for(const c of cards) gridEl.appendChild(c);
 }
 
-/* Akış */
+/* flow */
 async function checkAll(){
   const addr = document.getElementById('address').value.trim();
   const status = document.getElementById('status');
@@ -247,18 +252,14 @@ async function checkAll(){
     if(wantsEth && ethRes.status==="fulfilled"){
       const mapEth = buildOwnedTokenMap(ethRes.value);
       await renderTargets({targets: nodeTargets, ownedMap: mapEth, gridEl: gridNodeEth});
-    } else if (wantsEth) {
-      statusNodeEth.textContent = "Node Runner (ETH) sorgusunda hata.";
-    }
+    } else if (wantsEth) statusNodeEth.textContent = "Node Runner (ETH) sorgusunda hata.";
 
     if(wantsBase && baseRes.status==="fulfilled"){
       const mapBase = buildOwnedTokenMap(baseRes.value);
       await renderTargets({targets: alphaTargets, ownedMap: mapBase, gridEl: gridAlphaBase});
       await renderTargets({targets: betaTargets,  ownedMap: mapBase, gridEl: gridBetaBase});
       await renderTargets({targets: gammaTargets, ownedMap: mapBase, gridEl: gridGammaBase});
-    } else if (wantsBase) {
-      statusAlphaBase.textContent = "Base sorgusunda hata (Alpha/Beta/Gamma).";
-    }
+    } else if (wantsBase) statusAlphaBase.textContent = "Base sorgusunda hata (Alpha/Beta/Gamma).";
 
     status.textContent = "";
   }catch(e){
