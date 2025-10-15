@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>NFT Görüntüleyici (ETH & Base)</title>
+<style>
+  body{font-family:sans-serif;background:#111;color:#eee;text-align:center}
+  input,select,button{margin:8px;padding:8px;font-size:16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;padding:20px}
+  .card{background:#222;border-radius:10px;padding:10px}
+  .card img{width:100%;border-radius:8px}
+</style>
+</head>
+<body>
+  <h2>🖼️ NFT Görüntüleyici</h2>
+  <p>ETH/Base adresi ve Covalent GoldRush API key gir:</p>
+  <input id="address" placeholder="0x..." size="45">
+  <select id="chain">
+    <option value="1">Ethereum (1)</option>
+    <option value="8453">Base (8453)</option>
+  </select>
+  <input id="apiKey" placeholder="cqt_..." size="34">
+  <button onclick="loadNFTs()">Göster</button>
+  <div id="status"></div>
+  <div class="grid" id="grid"></div>
+
+<script>
+async function loadNFTs(){
+  const addr = address.value.trim();
+  const chainId = chain.value;
+  const key = apiKey.value.trim();
+  const grid = document.getElementById('grid');
+  const status = document.getElementById('status');
+  grid.innerHTML = ""; status.textContent = "";
+
+  if(!addr) return alert("Adres gir.");
+  if(!key) return alert("Covalent API key gir.");
+
+  status.textContent = "Yükleniyor...";
+
+  try{
+    const url = `https://api.covalenthq.com/v1/${chainId}/address/${addr}/balances_v2/?nft=true&no-nft-fetch=false`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${key}` }});
+    if(!res.ok) throw new Error("API hatası: " + res.status);
+    const data = await res.json();
+
+    const items = (data?.data?.items || []).filter(x => x.type === "nft" && Array.isArray(x.nft_data));
+    if(items.length === 0){ status.textContent = "NFT bulunamadı."; return; }
+
+    status.textContent = "";
+    for(const col of items){
+      for(const nft of col.nft_data){
+        const img = nft.external_data?.image || "";
+        const name = nft.external_data?.name || `${col.contract_name || 'NFT'} #${nft.token_id}`;
+        if(img){
+          const div = document.createElement('div');
+          div.className = 'card';
+          div.innerHTML = `<img src="${img}" alt="${name}"><p>${name}</p>`;
+          grid.appendChild(div);
+        }
+      }
+    }
+  }catch(e){
+    console.error(e);
+    status.textContent = "Hata: CORS (file://), geçersiz key veya limit. Kodu GitHub Pages’ten çalıştırmayı deneyin.";
+  }
+}
+</script>
+</body>
+</html>
