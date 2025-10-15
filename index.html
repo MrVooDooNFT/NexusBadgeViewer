@@ -50,19 +50,15 @@
 </main>
 
 <script>
-/* Gömülü Covalent API key (GoldRush) */
 const COVALENT_KEY = "cqt_rQmpdjRkVtvctfYTqQ63mBKq3GWr";
 
-/* Hedef 14 NFT — kontrat + tokenId düzeyinde kontrol */
 const TARGETS = [
-  // ---- Alpha (Ethereum, chainId: 1) ----
   { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "0" },
   { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "1" },
   { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "2" },
   { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "3" },
   { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "4" },
 
-  // ---- Betta (Base, chainId: 8453) ----
   { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "0" },
   { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "1" },
   { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "2" },
@@ -76,17 +72,11 @@ const TARGETS = [
 
 function toHttpFromIpfs(url){
   if(!url) return "";
-  if(url.startsWith("ipfs://")){
-    const path = url.replace("ipfs://","");
-    return `https://ipfs.io/ipfs/${path}`;
-  }
-  if(/^\/?ipfs\//i.test(url)){
-    return "https://ipfs.io/" + url.replace(/^\/?/,"");
-  }
+  if(url.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${url.replace("ipfs://","")}`;
+  if(/^\/?ipfs\//i.test(url)) return "https://ipfs.io/" + url.replace(/^\/?/,"");
   return url;
 }
-function short(s,n=64){ return s && s.length>n ? s.slice(0,n-3)+"..." : s; }
-function tidyId(x){ return String(x).replace(/^0+(\d)$/, "$1"); } // "0003" -> "3"
+function tidyId(x){ return String(x).replace(/^0+(\d)$/, "$1"); }
 
 async function fetchBalances(chainId, address){
   const url = `https://api.covalenthq.com/v1/${chainId}/address/${address}/balances_v2/?nft=true&no-nft-fetch=false`;
@@ -95,7 +85,6 @@ async function fetchBalances(chainId, address){
   return res.json();
 }
 
-/* { contract_lower: { [tokenId]: {img,name,collection} } } */
 function buildOwnedTokenMap(data){
   const map = {};
   const items = (data?.data?.items || []).filter(x => x.type === "nft" && Array.isArray(x.nft_data));
@@ -116,11 +105,6 @@ function buildOwnedTokenMap(data){
 
 function renderTargets({targets, ownedMap, gridEl, chainId}){
   gridEl.innerHTML = "";
-  if(!targets.length){
-    gridEl.innerHTML = `<div class="status muted">Bu ağ için hedef yok.</div>`;
-    return;
-  }
-
   for(const t of targets){
     const cLower = t.contract.toLowerCase();
     const tid = tidyId(t.tokenId);
@@ -141,20 +125,18 @@ function renderTargets({targets, ownedMap, gridEl, chainId}){
       img.src = meta.img; img.alt = meta.name; img.loading = "lazy";
       thumbs.appendChild(img);
     } else {
-      thumbs.innerHTML = `<div class="muted" style="width:100%;text-align:center;">(No preview)</div>`;
+      thumbs.innerHTML = `<div class="muted">(No preview)</div>`;
     }
 
     const info = document.createElement("div");
     info.className = "meta";
     info.innerHTML = `
-      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">
-        <div style="font-weight:700">${short(meta?.collection || "NFT Collection", 48)}</div>
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+        <div>${meta?.collection || "NFT"}</div>
         <div class="${owned?'ok':'no'}">${owned?'You have':'Missing'}</div>
       </div>
-      <div class="muted" style="margin-top:6px">${chainId===1?'Ethereum':'Base'} • ${t.contract} • Token #${tid}</div>
-      <div style="margin-top:6px;font-size:12px">
-        <a href="${scan}" target="_blank" rel="noopener">View on ${chainId===1?'Etherscan':'BaseScan'}</a>
-      </div>
+      <div class="muted">#${tid} • ${t.contract}</div>
+      <div style="margin-top:6px;font-size:12px"><a href="${scan}" target="_blank">View</a></div>
     `;
 
     card.appendChild(thumbs);
@@ -177,39 +159,31 @@ async function checkAll(){
 
   if(!/^0x[a-fA-F0-9]{40}$/.test(addr)){ alert("Geçerli bir 0x adresi gir."); return; }
 
-  // hedefleri ağa göre ayır
   const ethTargets = TARGETS.filter(t => t.chainId===1);
   const baseTargets = TARGETS.filter(t => t.chainId===8453);
 
-  status.textContent = "Yükleniyor… (Alpha + Betta)";
+  status.textContent = "Yükleniyor…";
+
   try{
     const [ethRes, baseRes] = await Promise.allSettled([
       ethTargets.length ? fetchBalances(1, addr) : Promise.resolve(null),
       baseTargets.length ? fetchBalances(8453, addr) : Promise.resolve(null)
     ]);
 
-    if(ethTargets.length){
-      if(ethRes.status === "fulfilled"){
-        const mapEth = buildOwnedTokenMap(ethRes.value);
-        renderTargets({targets: ethTargets, ownedMap: mapEth, gridEl: grid-eth, chainId: 1});
-      } else {
-        statusEth.textContent = "Alpha (ETH) sorgusunda hata.";
-      }
-    } else statusEth.textContent = "Alpha için hedef yok.";
+    if(ethTargets.length && ethRes.status==="fulfilled"){
+      const mapEth = buildOwnedTokenMap(ethRes.value);
+      renderTargets({targets: ethTargets, ownedMap: mapEth, gridEl: gridEth, chainId: 1});
+    } else statusEth.textContent = "Alpha (ETH) sorgusunda hata.";
 
-    if(baseTargets.length){
-      if(baseRes.status === "fulfilled"){
-        const mapBase = buildOwnedTokenMap(baseRes.value);
-        renderTargets({targets: baseTargets, ownedMap: mapBase, gridEl: grid-base, chainId: 8453});
-      } else {
-        statusBase.textContent = "Betta (Base) sorgusunda hata.";
-      }
-    } else statusBase.textContent = "Betta için hedef yok.";
+    if(baseTargets.length && baseRes.status==="fulfilled"){
+      const mapBase = buildOwnedTokenMap(baseRes.value);
+      renderTargets({targets: baseTargets, ownedMap: mapBase, gridEl: gridBase, chainId: 8453});
+    } else statusBase.textContent = "Betta (Base) sorgusunda hata.";
 
     status.textContent = "";
   }catch(e){
     console.error(e);
-    status.innerHTML = `<span class="no">Hata: ${e.message || e}. (HTTPS üzerinden çalıştırdığından ve key’in geçerli olduğundan emin ol)</span>`;
+    status.innerHTML = `<span class="no">Hata: ${e.message}</span>`;
   }
 }
 
