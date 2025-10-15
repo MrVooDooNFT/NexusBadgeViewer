@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0" />
@@ -11,6 +11,7 @@
   .row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
   input,button{padding:10px 12px;font-size:16px;border-radius:10px;border:1px solid #2a3042;background:var(--card);color:var(--txt)}
   button{cursor:pointer}
+  .hint{width:100%;text-align:center;font-size:12px;color:var(--muted);margin-top:6px}
   main{max-width:1200px;margin:0 auto;padding:16px}
   h2{margin:24px 0 12px;font-size:20px;font-weight:700}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
@@ -27,8 +28,9 @@
 <body>
 <header>
   <div class="row">
-    <input id="address" placeholder="Your Wallet Address (0x...)" size="46" />
-    <button id="goBtn">Check Badges</button>
+    <input id="address" placeholder="Nexus wallet address (0x…)" size="46" />
+    <button id="goBtn">Check</button>
+    <div class="hint">Your newly minted NFTs should appear within about 3–5 minutes.</div>
   </div>
   <div id="status" class="status"></div>
 </header>
@@ -149,7 +151,7 @@ async function fetchSingleMetadata(chainId, contract, tokenId){
   return out;
 }
 
-/* render: eğer owned koleksiyon adı "NFT" veya boşsa, tekil metadata ile düzelt */
+/* render (fix collection name via single metadata when needed) */
 async function renderTargets({targets, ownedMap, gridEl}){
   gridEl.innerHTML = "";
 
@@ -165,8 +167,6 @@ async function renderTargets({targets, ownedMap, gridEl}){
       let m = ownedMap[cLower][tid];
       img = m?.img || "";
       titleName = m?.collection || "NFT";
-
-      // 🔧 düzeltme: koleksiyon adı belirsizse tekil metadata'dan al
       if(!titleName || /^nft$/i.test(titleName)){
         const meta = await fetchSingleMetadata(t.chainId, t.contract, tid);
         if(meta){
@@ -231,14 +231,14 @@ async function checkAll(){
   statusNodeEth.textContent=statusAlphaBase.textContent=statusBetaBase.textContent=statusGammaBase.textContent="";
   status.textContent="";
 
-  if(!/^0x[a-fA-F0-9]{40}$/.test(addr)){ alert("Geçerli bir 0x adresi gir."); return; }
+  if(!/^0x[a-fA-F0-9]{40}$/.test(addr)){ alert("Please enter a valid 0x address."); return; }
 
   const nodeTargets  = TARGETS.filter(t => t.group==="node");
   const alphaTargets = TARGETS.filter(t => t.group==="alpha");
   const betaTargets  = TARGETS.filter(t => t.group==="beta");
   const gammaTargets = TARGETS.filter(t => t.group==="gamma");
 
-  status.textContent = "Yükleniyor…";
+  status.textContent = "Loading…";
 
   try{
     const wantsEth  = nodeTargets.length>0;
@@ -252,19 +252,19 @@ async function checkAll(){
     if(wantsEth && ethRes.status==="fulfilled"){
       const mapEth = buildOwnedTokenMap(ethRes.value);
       await renderTargets({targets: nodeTargets, ownedMap: mapEth, gridEl: gridNodeEth});
-    } else if (wantsEth) statusNodeEth.textContent = "Node Runner (ETH) sorgusunda hata.";
+    } else if (wantsEth) statusNodeEth.textContent = "Error while fetching Ethereum data.";
 
     if(wantsBase && baseRes.status==="fulfilled"){
       const mapBase = buildOwnedTokenMap(baseRes.value);
       await renderTargets({targets: alphaTargets, ownedMap: mapBase, gridEl: gridAlphaBase});
       await renderTargets({targets: betaTargets,  ownedMap: mapBase, gridEl: gridBetaBase});
       await renderTargets({targets: gammaTargets, ownedMap: mapBase, gridEl: gridGammaBase});
-    } else if (wantsBase) statusAlphaBase.textContent = "Base sorgusunda hata (Alpha/Beta/Gamma).";
+    } else if (wantsBase) statusAlphaBase.textContent = "Error while fetching Base data (Alpha/Beta/Gamma).";
 
     status.textContent = "";
   }catch(e){
     console.error(e);
-    status.innerHTML = `<span class="no">Hata: ${e.message}</span>`;
+    status.innerHTML = `<span class="no">Error: ${e.message}</span>`;
   }
 }
 
