@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-<title>NFT Checker — Alpha (ETH) & Betta (Base)</title>
+<title>NFT Checker — Alpha (ETH) & Beta (Base)</title>
 <style>
   :root { --bg:#0f1115; --card:#141825; --bd:#22283a; --txt:#e7e9ee; --muted:#a6adbb; }
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);margin:0}
@@ -28,7 +28,7 @@
 <header>
   <div class="row">
     <input id="address" placeholder="Kontrol edilecek adres (0x...)" size="46" />
-    <button id="goBtn">Kontrol et (Alpha + Betta)</button>
+    <button id="goBtn">Kontrol et (Alpha + Beta)</button>
   </div>
   <div id="status" class="status"></div>
 </header>
@@ -41,7 +41,7 @@
   </section>
 
   <section>
-    <h2>Betta — Base</h2>
+    <h2>Beta — Base</h2>
     <div id="grid-base" class="grid"></div>
     <div id="status-base" class="status muted"></div>
   </section>
@@ -50,22 +50,27 @@
 <script>
 const COVALENT_KEY = "cqt_rQmpdjRkVtvctfYTqQ63mBKq3GWr";
 
+/* İSTENEN İSİMLENDİRMEYE GÖRE HEDEF LİSTE */
+/* Node Runner — Ethereum (chainId:1) */
 const TARGETS = [
-  { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "0" },
-  { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "1" },
-  { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "2" },
-  { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "3" },
-  { chainId: 1, contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "4" },
+  { chainId: 1,    contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "0", name: "Node Runner" },
+  { chainId: 1,    contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "1", name: "Node Runner" },
+  { chainId: 1,    contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "2", name: "Node Runner" },
+  { chainId: 1,    contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "3", name: "Node Runner" },
+  { chainId: 1,    contract: "0xde63b92033aa77b115db1cec612029625d1c8fa5", tokenId: "4", name: "Node Runner" },
 
-  { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "0" },
-  { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "1" },
-  { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "2" },
-  { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "3" },
-  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "4" },
-  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "3" },
-  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "2" },
-  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "1" },
-  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "0" },
+  /* Alpha — Base (chainId:8453) 0x307d... (0–3) ve 0xe6cd... (sadece 4) */
+  { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "0", name: "Alpha" },
+  { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "1", name: "Alpha" },
+  { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "2", name: "Alpha" },
+  { chainId: 8453, contract: "0x307d51ad986d249f0b69a78c92ae2a6c140c19a4", tokenId: "3", name: "Alpha" },
+  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "4", name: "Alpha" },
+
+  /* Beta — Base (chainId:8453) 0xe6cd... (0–3) */
+  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "0", name: "Beta" },
+  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "1", name: "Beta" },
+  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "2", name: "Beta" },
+  { chainId: 8453, contract: "0xe6cd37ef5f27dba134adc081ab9890193520e97a", tokenId: "3", name: "Beta" },
 ];
 
 function toHttpFromIpfs(url){
@@ -74,7 +79,10 @@ function toHttpFromIpfs(url){
   if(/^\/?ipfs\//i.test(url)) return "https://ipfs.io/" + url.replace(/^\/?/,"");
   return url;
 }
-function tidyId(x){ return String(x).replace(/^0+(\d)$/, "$1"); }
+function tidyId(x){
+  const n = Number(String(x).replace(/^0+/, "")); // "0003" -> 3
+  return Number.isFinite(n) ? String(n) : String(x);
+}
 
 async function fetchBalances(chainId, address){
   const url = `https://api.covalenthq.com/v1/${chainId}/address/${address}/balances_v2/?nft=true&no-nft-fetch=false`;
@@ -83,6 +91,7 @@ async function fetchBalances(chainId, address){
   return res.json();
 }
 
+/* { contract_lower: { [tokenId]: {img,name,collection} } } */
 function buildOwnedTokenMap(data){
   const map = {};
   const items = (data?.data?.items || []).filter(x => x.type === "nft" && Array.isArray(x.nft_data));
@@ -94,8 +103,8 @@ function buildOwnedTokenMap(data){
       const tid = tidyId(nft.token_id ?? "");
       const meta = nft.external_data || {};
       const img = toHttpFromIpfs(meta.image || "");
-      const name = meta.name || `${col.contract_name || "NFT"} #${tid}`;
-      map[c][tid] = { img, name, collection: col.contract_name || "NFT" };
+      const fallbackName = `${col.contract_name || "NFT"} #${tid}`;
+      map[c][tid] = { img, name: meta.name || fallbackName, collection: col.contract_name || "NFT" };
     }
   }
   return map;
@@ -106,7 +115,7 @@ function renderTargets({targets, ownedMap, gridEl, chainId}){
   for(const t of targets){
     const cLower = t.contract.toLowerCase();
     const tid = tidyId(t.tokenId);
-    const displayId = parseInt(tid) + 1; // +1 gösterim
+    const displayId = (Number(tid) + 1); // +1 gösterim
     const owned = !!(ownedMap[cLower] && ownedMap[cLower][tid]);
     const meta = owned ? ownedMap[cLower][tid] : null;
 
@@ -127,7 +136,7 @@ function renderTargets({targets, ownedMap, gridEl, chainId}){
     info.className = "meta";
     info.innerHTML = `
       <div style="font-weight:700;font-size:15px;margin-bottom:4px">
-        ${meta?.collection || "NFT"} — #${displayId}
+        ${t.name} — #${displayId}
       </div>
       <div class="${owned?'ok':'no'}">${owned?'You have':'Missing'}</div>
     `;
@@ -171,7 +180,7 @@ async function checkAll(){
     if(baseTargets.length && baseRes.status==="fulfilled"){
       const mapBase = buildOwnedTokenMap(baseRes.value);
       renderTargets({targets: baseTargets, ownedMap: mapBase, gridEl: gridBase, chainId: 8453});
-    } else statusBase.textContent = "Betta (Base) sorgusunda hata.";
+    } else statusBase.textContent = "Beta (Base) sorgusunda hata.";
 
     status.textContent = "";
   }catch(e){
