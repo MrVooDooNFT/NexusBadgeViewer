@@ -1,71 +1,163 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>NFT Görüntüleyici (ETH & Base)</title>
-<style>
-  body{font-family:sans-serif;background:#111;color:#eee;text-align:center}
-  input,select,button{margin:8px;padding:8px;font-size:16px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;padding:20px}
-  .card{background:#222;border-radius:10px;padding:10px}
-  .card img{width:100%;border-radius:8px}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>NFT Görüntüleyici — Alpha (ETH) & Bette (Base)</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0f1115;color:#e7e9ee;margin:0}
+    header{padding:18px 16px;text-align:center;border-bottom:1px solid #1e2230}
+    .row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+    input,button{padding:10px 12px;font-size:16px;border-radius:10px;border:1px solid #2a3042;background:#141825;color:#e7e9ee}
+    button{cursor:pointer}
+    main{max-width:1200px;margin:0 auto;padding:16px}
+    h2{margin:24px 0 12px;font-size:20px;font-weight:700}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+    .card{background:#141825;border:1px solid #22283a;border-radius:12px;overflow:hidden}
+    .thumb{width:100%;aspect-ratio:1/1;object-fit:cover;background:#0b0e16}
+    .meta{padding:8px 10px;font-size:14px}
+    .status{margin-top:10px;text-align:center;opacity:.9}
+    .muted{opacity:.7}
+    .sec{margin-top:22px}
+    .err{color:#ff6b6b}
+    a{color:#9ecbff;text-decoration:none}
+    a:hover{text-decoration:underline}
+    footer{padding:16px;text-align:center;opacity:.6}
+  </style>
 </head>
 <body>
-  <h2>🖼️ NFT Görüntüleyici</h2>
-  <p>ETH/Base adresi ve Covalent GoldRush API key gir:</p>
-  <input id="address" placeholder="0x..." size="45">
-  <select id="chain">
-    <option value="1">Ethereum (1)</option>
-    <option value="8453">Base (8453)</option>
-  </select>
-  <input id="apiKey" placeholder="cqt_..." size="34">
-  <button onclick="loadNFTs()">Göster</button>
-  <div id="status"></div>
-  <div class="grid" id="grid"></div>
+<header>
+  <div class="row">
+    <input id="address" placeholder="Ethereum / Base adresi (0x...)" size="46" />
+    <button id="goBtn">Göster (ETH + Base)</button>
+  </div>
+  <div id="status" class="status muted"></div>
+</header>
+
+<main>
+  <section class="sec">
+    <h2>Alpha — Ethereum</h2>
+    <div id="grid-eth" class="grid"></div>
+    <div id="status-eth" class="status muted"></div>
+  </section>
+
+  <section class="sec">
+    <h2>Bette — Base</h2>
+    <div id="grid-base" class="grid"></div>
+    <div id="status-base" class="status muted"></div>
+  </section>
+</main>
+
+<footer>Veriler Covalent GoldRush API ile çekilir. Görseller IPFS/HTTP üzerinden gösterilir.</footer>
 
 <script>
-async function loadNFTs(){
-  const addr = address.value.trim();
-  const chainId = chain.value;
-  const key = apiKey.value.trim();
-  const grid = document.getElementById('grid');
-  const status = document.getElementById('status');
-  grid.innerHTML = ""; status.textContent = "";
+const COVALENT_KEY = "cqt_rQmpdjRkVtvctfYTqQ63mBKq3GWr"; // İstediğin gibi gömülü
+const CHAINS = {
+  eth: 1,      // Alpha
+  base: 8453   // Bette
+};
 
-  if(!addr) return alert("Adres gir.");
-  if(!key) return alert("Covalent API key gir.");
+function toHttpFromIpfs(url){
+  if(!url) return "";
+  if(url.startsWith("ipfs://")){
+    const path = url.replace("ipfs://", "");
+    return `https://ipfs.io/ipfs/${path}`;
+  }
+  // Bazı metadata'lar gatewayless döner: ipfs/<cid> veya /ipfs/<cid>
+  if(/^\/?ipfs\//i.test(url)){
+    return "https://ipfs.io/" + url.replace(/^\/?/,"");
+  }
+  return url;
+}
 
-  status.textContent = "Yükleniyor...";
+function short(s, n=42){
+  if(!s) return "";
+  return s.length>n ? s.slice(0, n-3)+"..." : s;
+}
 
-  try{
-    const url = `https://api.covalenthq.com/v1/${chainId}/address/${addr}/balances_v2/?nft=true&no-nft-fetch=false`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${key}` }});
-    if(!res.ok) throw new Error("API hatası: " + res.status);
-    const data = await res.json();
-
-    const items = (data?.data?.items || []).filter(x => x.type === "nft" && Array.isArray(x.nft_data));
-    if(items.length === 0){ status.textContent = "NFT bulunamadı."; return; }
-
-    status.textContent = "";
-    for(const col of items){
-      for(const nft of col.nft_data){
-        const img = nft.external_data?.image || "";
-        const name = nft.external_data?.name || `${col.contract_name || 'NFT'} #${nft.token_id}`;
-        if(img){
-          const div = document.createElement('div');
-          div.className = 'card';
-          div.innerHTML = `<img src="${img}" alt="${name}"><p>${name}</p>`;
-          grid.appendChild(div);
-        }
-      }
+async function fetchNftsFor(chainId, address){
+  const url = `https://api.covalenthq.com/v1/${chainId}/address/${address}/balances_v2/?nft=true&no-nft-fetch=false`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${COVALENT_KEY}` }});
+  if(!res.ok) throw new Error(`API ${chainId} status ${res.status}`);
+  const json = await res.json();
+  const items = (json?.data?.items || []).filter(x => x.type === "nft" && Array.isArray(x.nft_data));
+  const out = [];
+  for(const col of items){
+    const caddr = col.contract_address;
+    const cname = col.contract_name || "NFT";
+    for(const nft of col.nft_data){
+      const meta = nft.external_data || {};
+      const name = meta.name || `${cname} #${nft.token_id}`;
+      let img = meta.image || "";
+      img = toHttpFromIpfs(img);
+      if(img) out.push({
+        name, img,
+        tokenId: nft.token_id,
+        contract: caddr,
+        collection: cname
+      });
     }
-  }catch(e){
-    console.error(e);
-    status.textContent = "Hata: CORS (file://), geçersiz key veya limit. Kodu GitHub Pages’ten çalıştırmayı deneyin.";
+  }
+  return out;
+}
+
+function render(list, gridEl, statusEl, chainLabel){
+  gridEl.innerHTML = "";
+  if(!list || list.length === 0){
+    statusEl.textContent = `Bu adreste ${chainLabel} için NFT bulunamadı.`;
+    return;
+  }
+  statusEl.textContent = "";
+  for(const it of list){
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <img class="thumb" src="${it.img}" alt="${it.name}" loading="lazy">
+      <div class="meta">
+        <div>${short(it.name, 50)}</div>
+        <div class="muted">${short(it.collection || "Koleksiyon", 50)}</div>
+        <div class="muted">Token #${it.tokenId}</div>
+        <div style="margin-top:6px;font-size:12px">
+          <a href="https://etherscan.io/token/${it.contract}?a=${it.tokenId}" target="_blank" rel="noopener">Etherscan</a> •
+          <a href="https://basescan.org/token/${it.contract}?a=${it.tokenId}" target="_blank" rel="noopener">BaseScan</a>
+        </div>
+      </div>
+    `;
+    gridEl.appendChild(card);
   }
 }
+
+async function loadBoth(){
+  const addr = document.getElementById("address").value.trim();
+  const status = document.getElementById("status");
+  const gridEth = document.getElementById("grid-eth");
+  const gridBase = document.getElementById("grid-base");
+  const statusEth = document.getElementById("status-eth");
+  const statusBase = document.getElementById("status-base");
+
+  gridEth.innerHTML = ""; gridBase.innerHTML = "";
+  statusEth.textContent = ""; statusBase.textContent = "";
+  if(!/^0x[a-fA-F0-9]{40}$/.test(addr)){ alert("Geçerli bir 0x adresi gir."); return; }
+
+  status.textContent = "Yükleniyor… (ETH ve Base birlikte)";
+
+  try{
+    // ETH önce, Base sonra — tek seferde paralel çekiyoruz
+    const [ethList, baseList] = await Promise.all([
+      fetchNftsFor(CHAINS.eth, addr),
+      fetchNftsFor(CHAINS.base, addr)
+    ]);
+
+    render(ethList, gridEth, statusEth, "Ethereum");
+    render(baseList, gridBase, statusBase, "Base");
+    status.textContent = "";
+  }catch(err){
+    console.error(err);
+    status.innerHTML = `<span class="err">Hata: ${err.message || err}. (HTTPS üzerinden çalıştırdığından emin ol)</span>`;
+  }
+}
+
+document.getElementById("goBtn").addEventListener("click", loadBoth);
 </script>
 </body>
 </html>
