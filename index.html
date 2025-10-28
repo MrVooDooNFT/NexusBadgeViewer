@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-<title>NFT Checker — Node Runner (ETH) / Alpha, Beta, Gamma, Delta (Base)</title>
+<title>NFT Checker — Node Runner (ETH) / Alpha, Beta, Gamma, Delta, Epsilon (Base)</title>
 <style>
   :root { --bg:#0f1115; --card:#141825; --bd:#22283a; --txt:#e7e9ee; --muted:#a6adbb; }
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);margin:0}
@@ -65,6 +65,12 @@
     <div id="grid-delta-base" class="grid"></div>
     <div id="status-delta-base" class="status muted"></div>
   </section>
+
+  <section>
+    <h2>Epsilon — Base</h2>
+    <div id="grid-epsilon-base" class="grid"></div>
+    <div id="status-epsilon-base" class="status muted"></div>
+  </section>
 </main>
 
 <script>
@@ -72,7 +78,7 @@
 // ETH tarafında Covalent opsiyonel; Base tamamen on-chain RPC
 const COVALENT_KEY = ""; // istersen doldur; boşsa ETH de RPC fallback ile idare eder
 
-// CORS uyumlu RPC’ler — Promise.any ile ilk çalışan endpoint kullanılır
+// CORS uyumlu RPC’ler, Promise.any ile ilk çalışan endpoint kullanılır
 const RPCS = {
   1: [
     'https://rpc.ankr.com/eth',
@@ -83,7 +89,6 @@ const RPCS = {
     'https://base.blockpi.network/v1/rpc/public',
     'https://1rpc.io/base',
     'https://base.drpc.org'
-    // İstersen: 'https://base-mainnet.g.alchemy.com/v2/YOUR_KEY' en başa
   ]
 };
 
@@ -122,6 +127,13 @@ const TARGETS = [
   { group:"delta", chainId:8453, contract:"0x27b43b897ff89a1c9999e317304e756133beb105", tokenId:"2" },
   { group:"delta", chainId:8453, contract:"0x27b43b897ff89a1c9999e317304e756133beb105", tokenId:"3" },
   { group:"delta", chainId:8453, contract:"0x27b43b897ff89a1c9999e317304e756133beb105", tokenId:"5" },
+
+  // Epsilon — Base (ERC-1155)
+  { group:"epsilon", chainId:8453, contract:"0x0a9ba994c276431875368258af4506e3ad20cb4f", tokenId:"0" },
+  { group:"epsilon", chainId:8453, contract:"0x0a9ba994c276431875368258af4506e3ad20cb4f", tokenId:"1" },
+  { group:"epsilon", chainId:8453, contract:"0x0a9ba994c276431875368258af4506e3ad20cb4f", tokenId:"2" },
+  { group:"epsilon", chainId:8453, contract:"0x0a9ba994c276431875368258af4506e3ad20cb4f", tokenId:"3" },
+  { group:"epsilon", chainId:8453, contract:"0x0a9ba994c276431875368258af4506e3ad20cb4f", tokenId:"4" },
 ];
 
 /*** HELPERS ***/
@@ -132,7 +144,7 @@ const toHttpFromIpfs = (url)=>{
   return url;
 };
 const tidyId = (x)=>{
-  const n = Number(String(x).replace(/^0+/, "")); // "0003"->3
+  const n = Number(String(x).replace(/^0+/, ""));
   return Number.isFinite(n) ? String(n) : String(x);
 };
 
@@ -196,16 +208,15 @@ async function ethCall(chainId, to, data){
     .then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     .then(j => { if(j.error || !j.result) throw new Error(j?.error?.message || 'Empty result'); return j.result; })
   );
-  // İlk başarılı yanıtı döndür
   return Promise.any(attempts);
 }
 
 /*** SELECTORS + ABI HELPERS ***/
 const SEL = {
-  ownerOf: '0x6352211e',    // ERC721 ownerOf(uint256)
-  bal1155: '0x00fdd58e',    // ERC1155 balanceOf(address,uint256)
-  tokenURI:'0xc87b56dd',    // ERC721 tokenURI(uint256)
-  uri1155: '0x0e89341c'     // ERC1155 uri(uint256)
+  ownerOf: '0x6352211e',
+  bal1155: '0x00fdd58e',
+  tokenURI:'0xc87b56dd',
+  uri1155: '0x0e89341c'
 };
 const encU256 = (n)=> '0x' + BigInt(n).toString(16).padStart(64,'0');
 const encAddr32 = (a)=> '0x' + '0'.repeat(24) + a.replace(/^0x/,'').toLowerCase();
@@ -240,19 +251,17 @@ function normalizeMeta(meta){
   return { img, name, collection: "" };
 }
 
-/*** CACHE (on-chain metadata için) ***/
+/*** CACHE (on-chain metadata) ***/
 const META_CACHE = new Map(); // key: `${chainId}:${contract}:${tokenId}`
 
 /*** OWNERSHIP + METADATA ***/
 async function checkOwnedOnchain({chainId, contract, address, tokenId}){
   const id = BigInt(tokenId);
-  // ERC1155 balanceOf(address,uint256)
   try{
     const data = SEL.bal1155 + encAddr32(address).slice(2) + encU256(id).slice(2);
     const out = await ethCall(chainId, contract, data);
     if (BigInt(out) > 0n) return true;
   }catch(_){}
-  // ERC721 ownerOf(uint256)
   try{
     const data = SEL.ownerOf + encU256(id).slice(2);
     const out = await ethCall(chainId, contract, data);
@@ -265,7 +274,6 @@ async function fetchOnchainMetadata(chainId, contract, tokenId){
   const key = `${chainId}:${contract.toLowerCase()}:${tokenId}`;
   if (META_CACHE.has(key)) return META_CACHE.get(key);
 
-  // Önce ERC721 tokenURI, olmazsa ERC1155 uri
   let out = null;
   try{
     const data = SEL.tokenURI + encU256(tokenId).slice(2);
@@ -302,16 +310,13 @@ async function renderTargets({targets, ownedMap, gridEl, address}){
     const tid = tidyId(t.tokenId);
     const displayId = (Number(tid) + 1);
 
-    // 1) ETH için Covalent verisi; Base'te genelde boş
     let owned = !!(ownedMap && ownedMap[cLower] && ownedMap[cLower][tid]);
-
-    // 2) Sahiplik yoksa → on-chain (hızlı RPC)
     if(!owned){
       try { owned = await checkOwnedOnchain({ chainId:t.chainId, contract:t.contract, address, tokenId:tid }); }
       catch(_){ owned = false; }
     }
 
-    // Görsel/isim: HER DURUMDA dene (owned olmasa da)
+    // Sahip olsa da olmasa da metadata dene
     let img = "", titleName = "NFT";
     if(owned && ownedMap && ownedMap[cLower] && ownedMap[cLower][tid]){
       const m = ownedMap[cLower][tid];
@@ -360,35 +365,37 @@ async function checkAll(){
   const addr = document.getElementById('address').value.trim();
   const status = document.getElementById('status');
 
-  const gridNodeEth   = document.getElementById('grid-node-eth');
-  const gridAlphaBase = document.getElementById('grid-alpha-base');
-  const gridBetaBase  = document.getElementById('grid-beta-base');
-  const gridGammaBase = document.getElementById('grid-gamma-base');
-  const gridDeltaBase = document.getElementById('grid-delta-base');
+  const gridNodeEth    = document.getElementById('grid-node-eth');
+  const gridAlphaBase  = document.getElementById('grid-alpha-base');
+  const gridBetaBase   = document.getElementById('grid-beta-base');
+  const gridGammaBase  = document.getElementById('grid-gamma-base');
+  const gridDeltaBase  = document.getElementById('grid-delta-base');
+  const gridEpsilonBase= document.getElementById('grid-epsilon-base');
 
-  const statusNodeEth   = document.getElementById('status-node-eth');
-  const statusAlphaBase = document.getElementById('status-alpha-base');
-  const statusBetaBase  = document.getElementById('status-beta-base');
-  const statusGammaBase = document.getElementById('status-gamma-base');
-  const statusDeltaBase = document.getElementById('status-delta-base');
+  const statusNodeEth    = document.getElementById('status-node-eth');
+  const statusAlphaBase  = document.getElementById('status-alpha-base');
+  const statusBetaBase   = document.getElementById('status-beta-base');
+  const statusGammaBase  = document.getElementById('status-gamma-base');
+  const statusDeltaBase  = document.getElementById('status-delta-base');
+  const statusEpsilonBase= document.getElementById('status-epsilon-base');
 
-  gridNodeEth.innerHTML=gridAlphaBase.innerHTML=gridBetaBase.innerHTML=gridGammaBase.innerHTML=gridDeltaBase.innerHTML="";
-  statusNodeEth.textContent=statusAlphaBase.textContent=statusBetaBase.textContent=statusGammaBase.textContent=statusDeltaBase.textContent="";
+  gridNodeEth.innerHTML=gridAlphaBase.innerHTML=gridBetaBase.innerHTML=gridGammaBase.innerHTML=gridDeltaBase.innerHTML=gridEpsilonBase.innerHTML="";
+  statusNodeEth.textContent=statusAlphaBase.textContent=statusBetaBase.textContent=statusGammaBase.textContent=statusDeltaBase.textContent=statusEpsilonBase.textContent="";
   status.textContent="";
 
   if(!/^0x[a-fA-F0-9]{40}$/.test(addr)){ alert("Please enter a valid 0x address."); return; }
 
-  const nodeTargets  = TARGETS.filter(t => t.group==="node");
-  const alphaTargets = TARGETS.filter(t => t.group==="alpha");
-  const betaTargets  = TARGETS.filter(t => t.group==="beta");
-  const gammaTargets = TARGETS.filter(t => t.group==="gamma");
-  const deltaTargets = TARGETS.filter(t => t.group==="delta");
+  const nodeTargets   = TARGETS.filter(t => t.group==="node");
+  const alphaTargets  = TARGETS.filter(t => t.group==="alpha");
+  const betaTargets   = TARGETS.filter(t => t.group==="beta");
+  const gammaTargets  = TARGETS.filter(t => t.group==="gamma");
+  const deltaTargets  = TARGETS.filter(t => t.group==="delta");
+  const epsilonTargets= TARGETS.filter(t => t.group==="epsilon");
 
   status.textContent = "Loading…";
 
   let mapEth = null;
 
-  // ETH: Covalent varsa dene; olmazsa RPC ile sahiplik/metada on-chain
   try{
     if (COVALENT_KEY && nodeTargets.length){
       const ethRes = await schedule(()=>fetchBalances(1, addr));
@@ -398,20 +405,21 @@ async function checkAll(){
     statusNodeEth.textContent = "Using on-chain fallback for Ethereum.";
   }
 
-  // BASE: her zaman on-chain
+  // Base her zaman on-chain
   statusAlphaBase.textContent = "Using on-chain fallback for Base.";
 
   try{
-    if(nodeTargets.length)  await renderTargets({targets: nodeTargets,  ownedMap: mapEth||{},  gridEl: gridNodeEth,  address: addr});
-    if(alphaTargets.length) await renderTargets({targets: alphaTargets, ownedMap: {},       gridEl: gridAlphaBase, address: addr});
-    if(betaTargets.length)  await renderTargets({targets: betaTargets,  ownedMap: {},       gridEl: gridBetaBase,  address: addr});
-    if(gammaTargets.length) await renderTargets({targets: gammaTargets, ownedMap: {},       gridEl: gridGammaBase, address: addr});
-    if(deltaTargets.length) await renderTargets({targets: deltaTargets, ownedMap: {},       gridEl: gridDeltaBase, address: addr});
+    if(nodeTargets.length)    await renderTargets({targets: nodeTargets,   ownedMap: mapEth||{}, gridEl: gridNodeEth,    address: addr});
+    if(alphaTargets.length)   await renderTargets({targets: alphaTargets,  ownedMap: {},        gridEl: gridAlphaBase,  address: addr});
+    if(betaTargets.length)    await renderTargets({targets: betaTargets,   ownedMap: {},        gridEl: gridBetaBase,   address: addr});
+    if(gammaTargets.length)   await renderTargets({targets: gammaTargets,  ownedMap: {},        gridEl: gridGammaBase,  address: addr});
+    if(deltaTargets.length)   await renderTargets({targets: deltaTargets,  ownedMap: {},        gridEl: gridDeltaBase,  address: addr});
+    if(epsilonTargets.length) await renderTargets({targets: epsilonTargets,ownedMap: {},        gridEl: gridEpsilonBase,address: addr});
     status.textContent = "";
   }catch(e){
     console.error(e);
     status.innerHTML = `<span class="no">Error: ${e.message}</span>`;
-    document.getElementById('status-alpha-base').textContent = `Base RPC error: ${e.message}`;
+    statusAlphaBase.textContent = `Base RPC error: ${e.message}`;
   }
 }
 
