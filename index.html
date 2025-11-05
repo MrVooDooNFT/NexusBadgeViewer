@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-<title>NFT Checker — Node Runner (ETH) / Alpha, Beta, Gamma, Delta, Epsilon (Base)</title>
+<title>NFT Checker — Node Runner (ETH) / Alpha, Beta, Gamma, Delta, Epsilon, Zeta (Base)</title>
 <style>
   :root { --bg:#0f1115; --card:#141825; --bd:#22283a; --txt:#e7e9ee; --muted:#a6adbb; }
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);margin:0}
@@ -71,6 +71,12 @@
     <div id="grid-epsilon-base" class="grid"></div>
     <div id="status-epsilon-base" class="status muted"></div>
   </section>
+
+  <section>
+    <h2>Zeta — Base</h2>
+    <div id="grid-zeta-base" class="grid"></div>
+    <div id="status-zeta-base" class="status muted"></div>
+  </section>
 </main>
 
 <script>
@@ -134,6 +140,13 @@ const TARGETS = [
   { group:"epsilon", chainId:8453, contract:"0x0a9ba994c276431875368258af4506e3ad20cb4f", tokenId:"2" },
   { group:"epsilon", chainId:8453, contract:"0x0a9ba994c276431875368258af4506e3ad20cb4f", tokenId:"3" },
   { group:"epsilon", chainId:8453, contract:"0x0a9ba994c276431875368258af4506e3ad20cb4f", tokenId:"4" },
+
+  // Zeta — Base (ERC-1155)
+  { group:"zeta", chainId:8453, contract:"0x0eaa71c00f80bc293e0c9e08beee41946d37b0ca", tokenId:"0" },
+  { group:"zeta", chainId:8453, contract:"0x0eaa71c00f80bc293e0c9e08beee41946d37b0ca", tokenId:"1" },
+  { group:"zeta", chainId:8453, contract:"0x0eaa71c00f80bc293e0c9e08beee41946d37b0ca", tokenId:"2" },
+  { group:"zeta", chainId:8453, contract:"0x0eaa71c00f80bc293e0c9e08beee41946d37b0ca", tokenId:"3" },
+  { group:"zeta", chainId:8453, contract:"0x0eaa71c00f80bc293e0c9e08beee41946d37b0ca", tokenId:"4" },
 ];
 
 /*** HELPERS ***/
@@ -365,32 +378,35 @@ async function checkAll(){
   const addr = document.getElementById('address').value.trim();
   const status = document.getElementById('status');
 
-  const gridNodeEth    = document.getElementById('grid-node-eth');
-  const gridAlphaBase  = document.getElementById('grid-alpha-base');
-  const gridBetaBase   = document.getElementById('grid-beta-base');
-  const gridGammaBase  = document.getElementById('grid-gamma-base');
-  const gridDeltaBase  = document.getElementById('grid-delta-base');
-  const gridEpsilonBase= document.getElementById('grid-epsilon-base');
+  const gridNodeEth     = document.getElementById('grid-node-eth');
+  const gridAlphaBase   = document.getElementById('grid-alpha-base');
+  const gridBetaBase    = document.getElementById('grid-beta-base');
+  const gridGammaBase   = document.getElementById('grid-gamma-base');
+  const gridDeltaBase   = document.getElementById('grid-delta-base');
+  const gridEpsilonBase = document.getElementById('grid-epsilon-base');
+  const gridZetaBase    = document.getElementById('grid-zeta-base');
 
-  const statusNodeEth    = document.getElementById('status-node-eth');
-  const statusAlphaBase  = document.getElementById('status-alpha-base');
-  const statusBetaBase   = document.getElementById('status-beta-base');
-  const statusGammaBase  = document.getElementById('status-gamma-base');
-  const statusDeltaBase  = document.getElementById('status-delta-base');
-  const statusEpsilonBase= document.getElementById('status-epsilon-base');
+  const statusNodeEth     = document.getElementById('status-node-eth');
+  const statusAlphaBase   = document.getElementById('status-alpha-base');
+  const statusBetaBase    = document.getElementById('status-beta-base');
+  const statusGammaBase   = document.getElementById('status-gamma-base');
+  const statusDeltaBase   = document.getElementById('status-delta-base');
+  const statusEpsilonBase = document.getElementById('status-epsilon-base');
+  const statusZetaBase    = document.getElementById('status-zeta-base');
 
-  gridNodeEth.innerHTML=gridAlphaBase.innerHTML=gridBetaBase.innerHTML=gridGammaBase.innerHTML=gridDeltaBase.innerHTML=gridEpsilonBase.innerHTML="";
-  statusNodeEth.textContent=statusAlphaBase.textContent=statusBetaBase.textContent=statusGammaBase.textContent=statusDeltaBase.textContent=statusEpsilonBase.textContent="";
+  gridNodeEth.innerHTML=gridAlphaBase.innerHTML=gridBetaBase.innerHTML=gridGammaBase.innerHTML=gridDeltaBase.innerHTML=gridEpsilonBase.innerHTML=gridZetaBase.innerHTML="";
+  statusNodeEth.textContent=statusAlphaBase.textContent=statusBetaBase.textContent=statusGammaBase.textContent=statusDeltaBase.textContent=statusEpsilonBase.textContent=statusZetaBase.textContent="";
   status.textContent="";
 
   if(!/^0x[a-fA-F0-9]{40}$/.test(addr)){ alert("Please enter a valid 0x address."); return; }
 
-  const nodeTargets   = TARGETS.filter(t => t.group==="node");
-  const alphaTargets  = TARGETS.filter(t => t.group==="alpha");
-  const betaTargets   = TARGETS.filter(t => t.group==="beta");
-  const gammaTargets  = TARGETS.filter(t => t.group==="gamma");
-  const deltaTargets  = TARGETS.filter(t => t.group==="delta");
-  const epsilonTargets= TARGETS.filter(t => t.group==="epsilon");
+  const nodeTargets    = TARGETS.filter(t => t.group==="node");
+  const alphaTargets   = TARGETS.filter(t => t.group==="alpha");
+  const betaTargets    = TARGETS.filter(t => t.group==="beta");
+  const gammaTargets   = TARGETS.filter(t => t.group==="gamma");
+  const deltaTargets   = TARGETS.filter(t => t.group==="delta");
+  const epsilonTargets = TARGETS.filter(t => t.group==="epsilon");
+  const zetaTargets    = TARGETS.filter(t => t.group==="zeta");
 
   status.textContent = "Loading…";
 
@@ -409,12 +425,13 @@ async function checkAll(){
   statusAlphaBase.textContent = "Using on-chain fallback for Base.";
 
   try{
-    if(nodeTargets.length)    await renderTargets({targets: nodeTargets,   ownedMap: mapEth||{}, gridEl: gridNodeEth,    address: addr});
-    if(alphaTargets.length)   await renderTargets({targets: alphaTargets,  ownedMap: {},        gridEl: gridAlphaBase,  address: addr});
-    if(betaTargets.length)    await renderTargets({targets: betaTargets,   ownedMap: {},        gridEl: gridBetaBase,   address: addr});
-    if(gammaTargets.length)   await renderTargets({targets: gammaTargets,  ownedMap: {},        gridEl: gridGammaBase,  address: addr});
-    if(deltaTargets.length)   await renderTargets({targets: deltaTargets,  ownedMap: {},        gridEl: gridDeltaBase,  address: addr});
-    if(epsilonTargets.length) await renderTargets({targets: epsilonTargets,ownedMap: {},        gridEl: gridEpsilonBase,address: addr});
+    if(nodeTargets.length)     await renderTargets({targets: nodeTargets,    ownedMap: mapEth||{}, gridEl: gridNodeEth,     address: addr});
+    if(alphaTargets.length)    await renderTargets({targets: alphaTargets,   ownedMap: {},        gridEl: gridAlphaBase,   address: addr});
+    if(betaTargets.length)     await renderTargets({targets: betaTargets,    ownedMap: {},        gridEl: gridBetaBase,    address: addr});
+    if(gammaTargets.length)    await renderTargets({targets: gammaTargets,   ownedMap: {},        gridEl: gridGammaBase,   address: addr});
+    if(deltaTargets.length)    await renderTargets({targets: deltaTargets,   ownedMap: {},        gridEl: gridDeltaBase,   address: addr});
+    if(epsilonTargets.length)  await renderTargets({targets: epsilonTargets, ownedMap: {},        gridEl: gridEpsilonBase, address: addr});
+    if(zetaTargets.length)     await renderTargets({targets: zetaTargets,    ownedMap: {},        gridEl: gridZetaBase,    address: addr});
     status.textContent = "";
   }catch(e){
     console.error(e);
