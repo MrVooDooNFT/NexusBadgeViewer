@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-<title>NFT Checker — Node Runner (ETH) / Alpha, Beta, Gamma, Delta, Epsilon, Zeta (Base)</title>
+<title>NFT Checker — Node Runner (ETH) / Alpha, Beta, Gamma, Delta, Epsilon, Zeta, Node Rush, Gridcrews (Base)</title>
 <style>
   :root { --bg:#0f1115; --card:#141825; --bd:#22283a; --txt:#e7e9ee; --muted:#a6adbb; }
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);margin:0}
@@ -77,6 +77,18 @@
     <div id="grid-zeta-base" class="grid"></div>
     <div id="status-zeta-base" class="status muted"></div>
   </section>
+
+  <section>
+    <h2>Node Rush: Week 1 — Base</h2>
+    <div id="grid-noderushw1-base" class="grid"></div>
+    <div id="status-noderushw1-base" class="status muted"></div>
+  </section>
+
+  <section>
+    <h2>Gridcrews — Base</h2>
+    <div id="grid-gridcrews-base" class="grid"></div>
+    <div id="status-gridcrews-base" class="status muted"></div>
+  </section>
 </main>
 
 <script>
@@ -145,15 +157,38 @@ const TARGETS = [
   { group:"zeta", chainId:8453, contract:"0x0eaa71c00f80bc293e0c9e08beee41946d37b0ca", tokenId:"2" },
   { group:"zeta", chainId:8453, contract:"0x0eaa71c00f80bc293e0c9e08beee41946d37b0ca", tokenId:"3" },
   { group:"zeta", chainId:8453, contract:"0x0eaa71c00f80bc293e0c9e08beee41946d37b0ca", tokenId:"4" },
+
+  // Node Rush: Week 1 — Base
+  { group:"noderushw1", chainId:8453, contract:"0x57b16e9f869b26959e8e36c57aaba1b41b2a51d6", tokenId:"1" },
+  { group:"noderushw1", chainId:8453, contract:"0x57b16e9f869b26959e8e36c57aaba1b41b2a51d6", tokenId:"2" },
+  { group:"noderushw1", chainId:8453, contract:"0x57b16e9f869b26959e8e36c57aaba1b41b2a51d6", tokenId:"3" },
+  { group:"noderushw1", chainId:8453, contract:"0x57b16e9f869b26959e8e36c57aaba1b41b2a51d6", tokenId:"4" },
+
+  // Gridcrews — Base
+  { group:"gridcrews", chainId:8453, contract:"0xf82a74a6beaa6cc663ca2242a75eefb74d91680a", tokenId:"0" },
+  { group:"gridcrews", chainId:8453, contract:"0xf82a74a6beaa6cc663ca2242a75eefb74d91680a", tokenId:"1" },
+  { group:"gridcrews", chainId:8453, contract:"0xf82a74a6beaa6cc663ca2242a75eefb74d91680a", tokenId:"2" },
 ];
 
 /*** HELPERS ***/
-const toHttpFromIpfs = (url)=>{
+function toHttpFromIpfs(url){
   if(!url) return "";
-  if(url.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${url.slice(7)}`;
-  if(/^\/?ipfs\//i.test(url))   return "https://ipfs.io/" + url.replace(/^\/?/,"");
+
+  // ipfs://ipfs/<cid>/... formatını düzelt
+  if(url.startsWith("ipfs://")){
+    let p = url.slice(7); // remove "ipfs://"
+    if(p.startsWith("ipfs/")) p = p.slice(5); // remove "ipfs/"
+    return `https://ipfs.io/ipfs/${p}`;
+  }
+
+  // /ipfs/<cid>/... veya ipfs/<cid>/...
+  if(/^\/?ipfs\//i.test(url)){
+    return "https://ipfs.io/" + url.replace(/^\/?/,"");
+  }
+
   return url;
-};
+}
+
 const tidyId = (x)=>{
   const n = Number(String(x).replace(/^0+/, ""));
   return Number.isFinite(n) ? String(n) : String(x);
@@ -222,10 +257,10 @@ async function ethCall(chainId, to, data){
 
 /*** SELECTORS + ABI HELPERS ***/
 const SEL = {
-  ownerOf: '0x6352211e',    // ERC721 ownerOf(uint256)
-  bal1155: '0x00fdd58e',    // ERC1155 balanceOf(address,uint256)
-  tokenURI:'0xc87b56dd',    // ERC721 tokenURI(uint256)
-  uri1155: '0x0e89341c'     // ERC1155 uri(uint256)
+  ownerOf: '0x6352211e',
+  bal1155: '0x00fdd58e',
+  tokenURI:'0xc87b56dd',
+  uri1155: '0x0e89341c'
 };
 const encU256 = (n)=> '0x' + BigInt(n).toString(16).padStart(64,'0');
 const encAddr32 = (a)=> '0x' + '0'.repeat(24) + a.replace(/^0x/,'').toLowerCase();
@@ -262,8 +297,8 @@ function normalizeMeta(meta){
 }
 
 /*** CACHES ***/
-const META_CACHE = new Map(); // `${chainId}:${contract}:${tokenId}`
-const BAL_CACHE  = new Map(); // `${chainId}:${contract}:${address}:${tokenId}` -> BigInt
+const META_CACHE = new Map();
+const BAL_CACHE  = new Map();
 
 /*** OWNERSHIP + BALANCE ***/
 async function get1155Balance({chainId, contract, address, tokenId}){
@@ -331,17 +366,14 @@ async function renderTargets({targets, ownedMap, gridEl, address}){
     const displayId = (Number(tid) + 1);
     const isBase = t.chainId === 8453;
 
-    // sahiplik
     const bal = await get1155Balance({ chainId:t.chainId, contract:t.contract, address, tokenId:tid });
     const owned721 = bal > 0n ? false : await checkOwnerOf({ chainId:t.chainId, contract:t.contract, address, tokenId:tid });
     const owned = (bal > 0n) || owned721;
 
-    // label
     const ownedLabel = isBase
       ? (owned ? `Owned: ${bal.toString()}` : 'Missing')
       : (owned ? 'You have' : 'Missing');
 
-    // metadata
     let img = "", titleName = "NFT";
     if(owned && ownedMap && ownedMap[cLower] && ownedMap[cLower][tid]){
       const m = ownedMap[cLower][tid];
@@ -390,39 +422,44 @@ async function checkAll(){
   const addr = document.getElementById('address').value.trim();
   const status = document.getElementById('status');
 
-  const gridNodeEth     = document.getElementById('grid-node-eth');
-  const gridAlphaBase   = document.getElementById('grid-alpha-base');
-  const gridBetaBase    = document.getElementById('grid-beta-base');
-  const gridGammaBase   = document.getElementById('grid-gamma-base');
-  const gridDeltaBase   = document.getElementById('grid-delta-base');
-  const gridEpsilonBase = document.getElementById('grid-epsilon-base');
-  const gridZetaBase    = document.getElementById('grid-zeta-base');
+  const gridNodeEth          = document.getElementById('grid-node-eth');
+  const gridAlphaBase        = document.getElementById('grid-alpha-base');
+  const gridBetaBase         = document.getElementById('grid-beta-base');
+  const gridGammaBase        = document.getElementById('grid-gamma-base');
+  const gridDeltaBase        = document.getElementById('grid-delta-base');
+  const gridEpsilonBase      = document.getElementById('grid-epsilon-base');
+  const gridZetaBase         = document.getElementById('grid-zeta-base');
+  const gridNodeRushW1Base   = document.getElementById('grid-noderushw1-base');
+  const gridGridcrewsBase    = document.getElementById('grid-gridcrews-base');
 
-  const statusNodeEth     = document.getElementById('status-node-eth');
-  const statusAlphaBase   = document.getElementById('status-alpha-base');
-  const statusBetaBase    = document.getElementById('status-beta-base');
-  const statusGammaBase   = document.getElementById('status-gamma-base');
-  const statusDeltaBase   = document.getElementById('status-delta-base');
-  const statusEpsilonBase = document.getElementById('status-epsilon-base');
-  const statusZetaBase    = document.getElementById('status-zeta-base');
+  const statusNodeEth          = document.getElementById('status-node-eth');
+  const statusAlphaBase        = document.getElementById('status-alpha-base');
+  const statusBetaBase         = document.getElementById('status-beta-base');
+  const statusGammaBase        = document.getElementById('status-gamma-base');
+  const statusDeltaBase        = document.getElementById('status-delta-base');
+  const statusEpsilonBase      = document.getElementById('status-epsilon-base');
+  const statusZetaBase         = document.getElementById('status-zeta-base');
+  const statusNodeRushW1Base   = document.getElementById('status-noderushw1-base');
+  const statusGridcrewsBase    = document.getElementById('status-gridcrews-base');
 
-  gridNodeEth.innerHTML=gridAlphaBase.innerHTML=gridBetaBase.innerHTML=gridGammaBase.innerHTML=gridDeltaBase.innerHTML=gridEpsilonBase.innerHTML=gridZetaBase.innerHTML="";
-  statusNodeEth.textContent=statusAlphaBase.textContent=statusBetaBase.textContent=statusGammaBase.textContent=statusDeltaBase.textContent=statusEpsilonBase.textContent=statusZetaBase.textContent="";
+  gridNodeEth.innerHTML=gridAlphaBase.innerHTML=gridBetaBase.innerHTML=gridGammaBase.innerHTML=gridDeltaBase.innerHTML=gridEpsilonBase.innerHTML=gridZetaBase.innerHTML=gridNodeRushW1Base.innerHTML=gridGridcrewsBase.innerHTML="";
+  statusNodeEth.textContent=statusAlphaBase.textContent=statusBetaBase.textContent=statusGammaBase.textContent=statusDeltaBase.textContent=statusEpsilonBase.textContent=statusZetaBase.textContent=statusNodeRushW1Base.textContent=statusGridcrewsBase.textContent="";
   status.textContent="";
 
   if(!/^0x[a-fA-F0-9]{40}$/.test(addr)){ alert("Please enter a valid 0x address."); return; }
 
-  const nodeTargets    = TARGETS.filter(t => t.group==="node");
-  const alphaTargets   = TARGETS.filter(t => t.group==="alpha");
-  const betaTargets    = TARGETS.filter(t => t.group==="beta");
-  const gammaTargets   = TARGETS.filter(t => t.group==="gamma");
-  const deltaTargets   = TARGETS.filter(t => t.group==="delta");
-  const epsilonTargets = TARGETS.filter(t => t.group==="epsilon");
-  const zetaTargets    = TARGETS.filter(t => t.group==="zeta");
+  const nodeTargets        = TARGETS.filter(t => t.group==="node");
+  const alphaTargets       = TARGETS.filter(t => t.group==="alpha");
+  const betaTargets        = TARGETS.filter(t => t.group==="beta");
+  const gammaTargets       = TARGETS.filter(t => t.group==="gamma");
+  const deltaTargets       = TARGETS.filter(t => t.group==="delta");
+  const epsilonTargets     = TARGETS.filter(t => t.group==="epsilon");
+  const zetaTargets        = TARGETS.filter(t => t.group==="zeta");
+  const nodeRushW1Targets  = TARGETS.filter(t => t.group==="noderushw1");
+  const gridcrewsTargets   = TARGETS.filter(t => t.group==="gridcrews");
 
   status.textContent = "Loading…";
 
-  // ETH tarafında Covalent opsiyonel, ama sahiplik on-chain zaten kontrol ediliyor
   let mapEth = null;
   try{
     if (COVALENT_KEY && nodeTargets.length){
@@ -433,17 +470,18 @@ async function checkAll(){
     statusNodeEth.textContent = "Using on-chain fallback for Ethereum.";
   }
 
-  // Base her zaman on-chain
   statusAlphaBase.textContent = "Using on-chain fallback for Base.";
 
   try{
-    if(nodeTargets.length)     await renderTargets({targets: nodeTargets,    ownedMap: mapEth||{}, gridEl: gridNodeEth,     address: addr});
-    if(alphaTargets.length)    await renderTargets({targets: alphaTargets,   ownedMap: {},        gridEl: gridAlphaBase,   address: addr});
-    if(betaTargets.length)     await renderTargets({targets: betaTargets,    ownedMap: {},        gridEl: gridBetaBase,    address: addr});
-    if(gammaTargets.length)    await renderTargets({targets: gammaTargets,   ownedMap: {},        gridEl: gridGammaBase,   address: addr});
-    if(deltaTargets.length)    await renderTargets({targets: deltaTargets,   ownedMap: {},        gridEl: gridDeltaBase,   address: addr});
-    if(epsilonTargets.length)  await renderTargets({targets: epsilonTargets, ownedMap: {},        gridEl: gridEpsilonBase, address: addr});
-    if(zetaTargets.length)     await renderTargets({targets: zetaTargets,    ownedMap: {},        gridEl: gridZetaBase,    address: addr});
+    if(nodeTargets.length)        await renderTargets({targets: nodeTargets,       ownedMap: mapEth||{}, gridEl: gridNodeEth,        address: addr});
+    if(alphaTargets.length)       await renderTargets({targets: alphaTargets,      ownedMap: {},        gridEl: gridAlphaBase,      address: addr});
+    if(betaTargets.length)        await renderTargets({targets: betaTargets,       ownedMap: {},        gridEl: gridBetaBase,       address: addr});
+    if(gammaTargets.length)       await renderTargets({targets: gammaTargets,      ownedMap: {},        gridEl: gridGammaBase,      address: addr});
+    if(deltaTargets.length)       await renderTargets({targets: deltaTargets,      ownedMap: {},        gridEl: gridDeltaBase,      address: addr});
+    if(epsilonTargets.length)     await renderTargets({targets: epsilonTargets,    ownedMap: {},        gridEl: gridEpsilonBase,    address: addr});
+    if(zetaTargets.length)        await renderTargets({targets: zetaTargets,       ownedMap: {},        gridEl: gridZetaBase,       address: addr});
+    if(nodeRushW1Targets.length)  await renderTargets({targets: nodeRushW1Targets, ownedMap: {},        gridEl: gridNodeRushW1Base, address: addr});
+    if(gridcrewsTargets.length)   await renderTargets({targets: gridcrewsTargets,  ownedMap: {},        gridEl: gridGridcrewsBase,  address: addr});
     status.textContent = "";
   }catch(e){
     console.error(e);
